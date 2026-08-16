@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌱 Plant Doctor</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      font-family: system-ui, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: linear-gradient(#f0fdf4, #fff);
+      padding: 24px;
+    }
+
+    .wrap {
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #14532d;
+      font-size: 28px;
+    }
+
+    .sub {
+      color: #4b5563;
+      margin: 6px 0 20px;
+    }
+
+    #drop {
+      border: 2px dashed #86efac;
+      background: #fff;
+      border-radius: 16px;
+      padding: 48px 16px;
+      text-align: center;
+      cursor: pointer;
+      color: #6b7280;
+    }
+
+    #drop:hover {
+      border-color: #22c55e;
+    }
+
+    #drop img {
+      max-width: 100%;
+      max-height: 280px;
+      border-radius: 12px;
+    }
+
+    #status {
+      margin-top: 16px;
+      color: #15803d;
+      font-weight: 600;
+      display: none;
+    }
+
+    #error {
+      margin-top: 16px;
+      background: #fef2f2;
+      color: #b91c1c;
+      padding: 12px;
+      border-radius: 10px;
+      display: none;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, .1);
+      margin-top: 14px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .badge {
+      border-radius: 999px;
+      padding: 3px 12px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .bar {
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      margin-top: 8px;
+    }
+
+    .bar>div {
+      height: 8px;
+      background: #22c55e;
+      border-radius: 999px;
+    }
+
+    h3 {
+      font-size: 15px;
+      margin-bottom: 8px;
+      color: #111827;
+    }
+
+    ul {
+      padding-left: 20px;
+      color: #374151;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    .warn {
+      background: #fefce8;
+      color: #854d0e;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-top: 14px;
+    }
+
+    .disclaimer {
+      background: #eff6ff;
+      color: #1e40af;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      margin-top: 14px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>🌱 Plant Doctor</h1>
+    <p class="sub">Upload a photo of the damaged area for a diagnosis and treatment plan.</p>
+
+    <div id="drop">
+      <input type="file" id="file" accept="image/*" hidden>
+      <p id="prompt">Click or drag &amp; drop an image here</p>
+    </div>
+
+    <p id="status">🔍 Analyzing…</p>
+    <div id="error"></div>
+    <div id="results"></div>
+  </div>
+
+  <script>
+    // ⚠️ LOCAL PREVIEW ONLY — this key is visible to anyone with this file. Never deploy this.
+    const GROQ_API_KEY = "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";
+    const MODEL = "qwen/qwen3.6-27b"; // verify current vision model in Groq console
+
+    const drop = document.getElementById("drop");
+    const fileInput = document.getElementById("file");
+    const status = document.getElementById("status");
+    const errorBox = document.getElementById("error");
+    const results = document.getElementById("results");
+
+    drop.addEventListener("click", () => fileInput.click());
+    drop.addEventListener("dragover", (e) => e.preventDefault());
+    drop.addEventListener("drop", (e) => { e.preventDefault(); handleFile(e.dataTransfer.files[0]); });
+    fileInput.addEventListener("change", (e) => handleFile(e.target.files[0]));
+
+    async function handleFile(file) {
+      if (!file) return;
+      if (!file.type.startsWith("image/")) return showError("Please choose an image file.");
+      errorBox.style.display = "none";
+      results.innerHTML = "";
+      const reader = new FileReader();
+      reader.onload = () => {
+        drop.querySelector("img")?.remove();
+        const img = document.createElement("img");
+        img.src = reader.result;
+        drop.appendChild(img);
+        document.getElementById("prompt").style.display = "none";
+        analyze(reader.result, file.type);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function analyze(dataUrl, mimeType) {
+      status.style.display = "block";
+      try {
+        const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
+          body: JSON.stringify({
+            model: MODEL,
+            messages: [{
+              role: "user",
+              content: [
+                {
+                  type: "text", text: `You are an expert plant pathologist. Analyze the plant image and return ONLY valid JSON (no markdown) matching this exact schema:
+{"is_plant": boolean, "condition": "string", "category": "disease|pest|nutrient_deficiency|environmental|none",
+ "confidence": number 0-1, "symptoms_observed": string[], "causes": string[],
+ "treatment_plan": string[], "prevention": string[]}
+If the image is not a plant, set is_plant=false and leave diagnosis fields minimal.` },
+                { type: "image_url", image_url: { url: dataUrl } }
+              ]
+            }],
+            response_format: { type: "json_object" }
+          })
+        });
+        if (!res.ok) throw new Error(`Groq API ${res.status}: ${await res.text()}`);
+        const data = await res.json();
+        render(JSON.parse(data.choices[0].message.content));
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        status.style.display = "none";
+      }
+    }
+
+    function render(r) {
+      if (r.is_plant !== true) {
+        results.innerHTML = `<div class="card">🤔 This doesn't look like a plant. Try a close-up of the damaged leaves or stem.</div>`;
+        return;
+      }
+      const conf = Math.round((r.confidence ?? 0) * 100);
+      const badgeColor = {
+        disease: "#fee2e2 #991b1b", pest: "#ffedd5 #9a3412",
+        nutrient_deficiency: "#fef9c3 #854d0e", environmental: "#dbeafe #1e40af", none: "#dcfce7 #166534"
+      }[r.category] || "#f3f4f6 #374151";
+      const [bg, fg] = badgeColor.split(" ");
+
+      results.innerHTML = `
+      <div class="card">
+        <div class="row">
+          <h3 style="font-size:20px; margin:0">${escapeHtml(r.condition || "Unknown")}</h3>
+          <span class="badge" style="background:${bg}; color:${fg}">${(r.category || "unknown").replace("_", " ")}</span>
+        </div>
+        <div class="row" style="margin-top:12px; font-size:13px; color:#6b7280"><span>Confidence</span><span>${conf}%</span></div>
+        <div class="bar"><div style="width:${conf}%"></div></div>
+        ${conf < 70 ? `<div class="warn">⚠️ Low confidence — retake in good lighting, close up, and try again.</div>` : ""}
+      </div>
+      ${section("Symptoms observed", r.symptoms_observed)}
+      ${section("Likely causes", r.causes)}
+      ${section("🩺 Treatment plan", r.treatment_plan, true)}
+      ${section("Prevention", r.prevention)}
+      <div class="disclaimer">⚠️ AI-generated diagnosis for guidance only — not a substitute for a professional agronomist or plant pathologist.</div>`;
+    }
+
+    function section(title, items, numbered = false) {
+      if (!Array.isArray(items) || !items.length) return "";
+      const lis = items.map(i => `<li>${escapeHtml(i)}</li>`).join("");
+      return `<div class="card"><h3>${title}</h3><ul style="list-style-type:${numbered ? "decimal" : "disc"}">${lis}</ul></div>`;
+    }
+
+    function showError(msg) { errorBox.textContent = msg; errorBox.style.display = "block"; }
+    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+  </script>
+</body>
+
+</html>
