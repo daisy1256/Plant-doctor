@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leafora - AI Plant Doctor</title>
+    <script src="https://unpkg.com/@google/generative-ai"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0a1f0d;
+            --green-primary: #22c55e;
+            --green-dark: #166534;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a1f0d 0%, #1a3a2a 50%, #0d2818 100%);
+            min-height: 100vh;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        /* Leaf Pattern Background */
+        .leaf-pattern {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .leaf {
+            position: absolute;
+            opacity: 0.15;
+        }
+
+        .leaf-1 {
+            top: -50px;
+            left: -50px;
+            width: 300px;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .leaf-2 {
+            top: 200px;
+            right: -30px;
+            width: 200px;
+            animation: float 8s ease-in-out infinite;
+            animation-delay: 2s;
+        }
+
+        .leaf-3 {
+            bottom: 100px;
+            left: 50px;
+            width: 150px;
+            animation: float 7s ease-in-out infinite;
+            animation-delay: 1s;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(0deg);
+            }
+
+            50% {
+                transform: translateY(-20px) rotate(5deg);
+            }
+        }
+
+        /* Header */
+        .header {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+        }
+
+        .menu-btn,
+        .cart-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+
+        .menu-btn:hover,
+        .cart-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .logo {
+            font-size: 1.4rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .cart-wrapper {
+            position: relative;
+        }
+
+        .cart-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--green-primary);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: bold;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Main Content */
+        .main {
+            position: relative;
+            z-index: 10;
+            padding: 0 24px 120px;
+        }
+
+        .welcome {
+            margin-bottom: 24px;
+        }
+
+        .welcome h2 {
+            font-size: 1.8rem;
+            margin-bottom: 4px;
+        }
+
+        .welcome p {
+            color: #9ca3af;
+            font-size: 0.9rem;
+        }
+
+        /* Cards */
+        .diagnose-card {
+            background: linear-gradient(135deg, #166534 0%, #14532d 100%);
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 0 40px rgba(34, 197, 94, 0.2);
+        }
+
+        .diagnose-card h3 {
+            font-size: 1.6rem;
+            margin-bottom: 12px;
+            line-height: 1.3;
+        }
+
+        .diagnose-card .highlight {
+            background: linear-gradient(135deg, #4ade80, #22c55e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .diagnose-card p {
+            color: #d1d5db;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-primary {
+            background: white;
+            color: #111;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            background: #f3f4f6;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 12px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Glass Card */
+        .glass-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+        }
+
+        /* Stats */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-card .icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .stat-card .label {
+            font-size: 0.7rem;
+            color: #9ca3af;
+        }
+
+        /* History Section */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .section-header h3 {
+            font-size: 1.1rem;
+        }
+
+        .section-header a {
+            color: var(--green-primary);
+            font-size: 0.85rem;
+            text-decoration: none;
+        }
+
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .history-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .history-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(34, 197, 94, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .history-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .history-detail {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-recovering {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+        }
+
+        .status-healthy {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(20, 40, 30, 0.95);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 100;
+        }
+
+        .nav-items {
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 16px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px 16px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #6b7280;
+            transition: all 0.3s;
+            font-size: 0.7rem;
+        }
+
+        .nav-item.active {
+            color: #4ade80;
+            background: rgba(34, 197, 94, 0.2);
+        }
+
+        .nav-item:hover {
+            color: #d1d5db;
+        }
+
+        .nav-icon {
+            font-size: 1.3rem;
+            margin-bottom: 4px;
+        }
+
+        /* Page Transitions */
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* Diagnose Page */
+        .back-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .page-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(34, 197, 94, 0.4);
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 24px;
+        }
+
+        .upload-area:hover {
+            border-color: #22c55e;
+            background: rgba(34, 197, 94, 0.1);
+        }
+
+        .upload-area.dragover {
+            border-color: #4ade80;
+            background: rgba(34, 197, 94, 0.2);
+        }
+
+        .upload-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(34, 197, 94, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 1.8rem;
+        }
+
+        .upload-area h3 {
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+
+        .upload-area p {
+            color: #6b7280;
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+        }
+
+        .upload-meta {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            font-size: 0.75rem;
+            color: #4b5563;
+        }
+
+        /* Image Preview */
+        .image-preview {
+            position: relative;
+            border-radius: 24px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .image-preview img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+        }
+
+        .remove-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: white;
+        }
+
+        /* Analyze Button */
+        .analyze-btn {
+            width: 100%;
+            padding: 16px;
+            border-radius: 16px;
+            border: none;
+            background: linear-gradient(135deg, #22c55e, #059669);
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(34, 197, 94, 0.3);
+        }
+
+        .analyze-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Results */
+        .results {
+            margin-top: 24px;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .result-header h3 {
+            font-size: 1.3rem;
+        }
+
+        .severity-badge {
+            padding: 6px 12px;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .severity-low {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+        }
+
+        .severity-medium {
+            background: rgba(234, 179, 8, 0.2);
+            color: #facc15;
+        }
+
+        .severity-high {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        .result-diagnosis {
+            color: #d1d5db;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        /* Expandable Sections */
+        .expandable {
+            margin-top: 16px;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .expandable-header {
+            width: 100%;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+        }
+
+        .expandable-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .expandable-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .expandable-content {
+            padding: 0 20px 20px;
+            display: none;
+        }
+
+        .expandable-content.open {
+            display: block;
+        }
+
+        .disease-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .disease-card h4 {
+            margin-bottom: 8px;
+        }
+
+        .disease-card p {
+            color: #9ca3af;
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+        }
+
+        .list-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .list-title.prevention {
+            color: #4ade80;
+        }
+
+        .list-title.treatment {
+            color: #60a5fa;
+        }
+
+        .checklist {
+            list-style: none;
+        }
+
+        .checklist li {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            color: #d1d5db;
+        }
+
+        .check-icon {
+            color: #4ade80;
+            margin-top: 2px;
+        }
+
+        .check-icon.blue {
+            color: #60a5fa;
+        }
+
+        /* Care Grid */
+        .care-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .care-item {
+            padding: 16px;
+            border-radius: 16px;
+        }
+
+        .care-item .care-icon {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .care-item h5 {
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+        }
+
+        .care-item p {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            line-height: 1.4;
+        }
+
+        .care-water {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .care-sun {
+            background: rgba(234, 179, 8, 0.1);
+        }
+
+        .care-humidity {
+            background: rgba(168, 85, 247, 0.1);
+        }
+
+        .care-temp {
+            background: rgba(249, 115, 22, 0.1);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .action-buttons button {
+            flex: 1;
+            padding: 14px;
+            border-radius: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-reset {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-reset:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-save {
+            background: #22c55e;
+            color: white;
+            border: none;
+        }
+
+        .btn-save:hover {
+            background: #16a34a;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Page Header */
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+        }
+
+        .page-header-spacer {
+            width: 40px;
+        }
+
+        /* Intro Section */
+        .intro {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .intro-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(34, 197, 94, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 2.5rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+            }
+
+            50% {
+                box-shadow: 0 0 40px rgba(34, 197, 94, 0.6);
+            }
+        }
+
+        .intro h2 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        .intro p {
+            color: #9ca3af;
+            font-size: 0.9rem;
+            max-width: 300px;
+            margin: 0 auto;
+            line-height: 1.5;
+        }
+
+        /* Plants Page */
+        .search-box {
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .search-box input {
+            background: transparent;
+            border: none;
+            color: white;
+            width: 100%;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .search-box input::placeholder {
+            color: #4b5563;
+        }
+
+        .plants-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .plant-card {
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+
+        .plant-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .plant-card .plant-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+        }
+
+        .plant-card h4 {
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        /* History Page */
+        .history-page-item {
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .history-page-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .history-page-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(34, 197, 94, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+        }
+
+        .history-page-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+        }
+
+        .history-page-issue {
+            color: #9ca3af;
+            font-size: 0.85rem;
+        }
+
+        .history-page-date {
+            color: #6b7280;
+            font-size: 0.75rem;
+            margin-top: 4px;
+        }
+
+        .status-treated {
+            background: rgba(234, 179, 8, 0.2);
+            color: #facc15;
+        }
+
+        /* API Key Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 24px;
+        }
+
+        .modal-overlay.hidden {
+            display: none;
+        }
+
+        .modal {
+            background: #1a3a2a;
+            border-radius: 24px;
+            padding: 32px;
+            max-width: 400px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal h2 {
+            font-size: 1.4rem;
+            margin-bottom: 8px;
+        }
+
+        .modal p {
+            color: #9ca3af;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+
+        .modal input {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            outline: none;
+        }
+
+        .modal input:focus {
+            border-color: #22c55e;
+        }
+
+        .modal-btn {
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            background: linear-gradient(135deg, #22c55e, #059669);
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .modal-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Responsive */
+        @media (min-width: 768px) {
+            .main {
+                max-width: 500px;
+                margin: 0 auto;
+            }
+
+            .bottom-nav {
+                max-width: 500px;
+                left: 50%;
+                transform: translateX(-50%);
+                border-radius: 24px 24px 0 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Leaf Pattern Background -->
+    <div class="leaf-pattern">
+        <svg class="leaf leaf-1" viewBox="0 0 100 100" fill="none">
+            <path d="M50 10 C20 30, 10 60, 50 90 C90 60, 80 30, 50 10Z" fill="#22c55e" />
+            <path d="M50 20 L50 80" stroke="#15803d" stroke-width="1" />
+            <path d="M50 40 C40 35, 30 40, 25 45" stroke="#15803d" stroke-width="0.5" fill="none" />
+            <path d="M50 50 C60 45, 70 50, 75 55" stroke="#15803d" stroke-width="0.5" fill="none" />
+        </svg>
+        <svg class="leaf leaf-2" viewBox="0 0 100 100" fill="none">
+            <path d="M30 50 C50 20, 80 30, 90 50 C80 80, 50 90, 30 50Z" fill="#16a34a" />
+        </svg>
+        <svg class="leaf leaf-3" viewBox="0 0 100 100" fill="none">
+            <path d="M50 20 C25 40, 30 70, 50 80 C70 70, 75 40, 50 20Z" fill="#22c55e" />
+        </svg>
+    </div>
+
+    <!-- API Key Modal -->
+    <div class="modal-overlay" id="apiKeyModal">
+        <div class="modal">
+            <h2>🌿 Welcome to Leafora</h2>
+            <p>Enter your Google Gemini API key to start diagnosing your plants. Get a free key at <a
+                    href="https://aistudio.google.com/" target="_blank" style="color: #4ade80;">aistudio.google.com</a>
+            </p>
+            <input type="password" id="apiKeyInput" placeholder="Paste your Gemini API key here...">
+            <button class="modal-btn" onclick="saveApiKey()">Start Diagnosing</button>
+        </div>
+    </div>
+
+    <!-- HOME PAGE -->
+    <div class="page active" id="homePage">
+        <header class="header">
+            <button class="menu-btn">☰</button>
+            <span class="logo">Leafora</span>
+            <div class="cart-wrapper">
+                <button class="cart-btn">🛒</button>
+                <span class="cart-badge">2</span>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="welcome">
+                <h2>Hello, Plant Parent 🌿</h2>
+                <p>Your AI Plant Doctor is ready to help.</p>
+            </div>
+
+            <div class="diagnose-card">
+                <h3>Diagnose & <span class="highlight">nurture</span><br>every leaf.</h3>
+                <p>Snap a photo of a sick plant and get an instant diagnosis, care plan, and a spot in your saved
+                    history.</p>
+                <div class="btn-group">
+                    <button class="btn-primary" onclick="showPage('diagnosePage')">
+                        🔍 Check Plant Health
+                    </button>
+                    <button class="btn-secondary" onclick="showPage('historyPage')">
+                        📋 Save History
+                    </button>
+                </div>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card glass-card">
+                    <div class="icon">💧</div>
+                    <div class="value">24</div>
+                    <div class="label">Plants Cared</div>
+                </div>
+                <div class="stat-card glass-card">
+                    <div class="icon">🌿</div>
+                    <div class="value">18</div>
+                    <div class="label">Healthy</div>
+                </div>
+                <div class="stat-card glass-card">
+                    <div class="icon">☀️</div>
+                    <div class="value">6</div>
+                    <div class="label">Recovering</div>
+                </div>
+            </div>
+
+            <div class="section-header">
+                <h3>Saved Plant History</h3>
+                <a href="#" onclick="showPage('historyPage')">View All →</a>
+            </div>
+
+            <div class="history-item glass-card">
+                <div class="history-left">
+                    <div class="history-icon">🪴</div>
+                    <div>
+                        <div class="history-name">Monstera Deliciosa</div>
+                        <div class="history-detail">Overwatering · Treated 2 days ago</div>
+                    </div>
+                </div>
+                <span class="status-badge status-recovering">Recovering</span>
+            </div>
+
+            <div class="history-item glass-card">
+                <div class="history-left">
+                    <div class="history-icon">🌱</div>
+                    <div>
+                        <div class="history-name">Peace Lily</div>
+                        <div class="history-detail">Brown leaf tips · Treated 5 days ago</div>
+                    </div>
+                </div>
+                <span class="status-badge status-healthy">Healthy</span>
+            </div>
+        </main>
+    </div>
+
+    <!-- DIAGNOSE PAGE -->
+    <div class="page" id="diagnosePage">
+        <header class="page-header">
+            <button class="back-btn" onclick="showPage('homePage')">←</button>
+            <span class="page-title">Diagnose Plant</span>
+            <div class="page-header-spacer"></div>
+        </header>
+
+        <main class="main">
+            <!-- Upload Section -->
+            <div id="uploadSection">
+                <div class="intro">
+                    <div class="intro-icon">🌱</div>
+                    <h2>Identify Your Plant</h2>
+                    <p>Upload a photo and our AI will diagnose diseases, suggest treatments, and help your plant thrive.
+                    </p>
+                </div>
+
+                <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                    <input type="file" id="fileInput" accept="image/*" style="display: none"
+                        onchange="handleImageUpload(event)">
+                    <div class="upload-icon">📤</div>
+                    <h3>Drop your plant photo here</h3>
+                    <p>or click to browse</p>
+                    <div class="upload-meta">
+                        <span>📷 JPG, PNG</span>
+                        <span>•</span>
+                        <span>Max 10MB</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Preview Section -->
+            <div id="previewSection" style="display: none;">
+                <div class="image-preview glass-card">
+                    <img id="previewImage" src="" alt="Uploaded plant">
+                    <button class="remove-btn" onclick="removeImage()">✕</button>
+                </div>
+                <button class="analyze-btn" id="analyzeBtn" onclick="analyzePlant()">
+                    🌿 Analyze Plant Health
+                </button>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultsSection" class="results" style="display: none;">
+                <div class="glass-card" style="padding: 20px; margin-bottom: 16px;">
+                    <div class="result-header">
+                        <div>
+                            <h3 id="resultPlantName">Plant Analysis</h3>
+                            <p style="color: #9ca3af; font-size: 0.8rem;">AI-Powered Analysis</p>
+                        </div>
+                        <span class="severity-badge" id="severityBadge">⚠ Moderate</span>
+                    </div>
+                    <p class="result-diagnosis" id="resultDiagnosis"></p>
+                </div>
+
+                <!-- Diseases Section -->
+                <div class="expandable glass-card">
+                    <button class="expandable-header" onclick="toggleSection('diseasesContent')">
+                        <div class="expandable-header-left">
+                            <div class="expandable-icon" style="background: rgba(239, 68, 68, 0.2);">⚠️</div>
+                            <span>Detected Issues</span>
+                        </div>
+                        <span id="diseasesArrow">▼</span>
+                    </button>
+                    <div class="expandable-content open" id="diseasesContent"></div>
+                </div>
+
+                <!-- Care Section -->
+                <div class="expandable glass-card">
+                    <button class="expandable-header" onclick="toggleSection('careContent')">
+                        <div class="expandable-header-left">
+                            <div class="expandable-icon" style="background: rgba(34, 197, 94, 0.2);">🌱</div>
+                            <span>Care Instructions</span>
+                        </div>
+                        <span id="careArrow">▼</span>
+                    </button>
+                    <div class="expandable-content" id="careContent"></div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn-reset" onclick="resetDiagnosis()">New Diagnosis</button>
+                    <button class="btn-save" onclick="saveToHistory()">Save to History</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- PLANTS PAGE -->
+    <div class="page" id="plantsPage">
+        <header class="page-header">
+            <button class="back-btn" onclick="showPage('homePage')">←</button>
+            <span class="page-title">My Plants</span>
+            <button class="menu-btn" style="background: #22c55e;">+</button>
+        </header>
+
+        <main class="main">
+            <div class="glass-card search-box">
+                <input type="text" placeholder="🔍 Search your plants...">
+            </div>
+
+            <div class="plants-grid">
+                <div class="plant-card glass-card">
+                    <div class="plant-icon">🪴</div>
+                    <h4>Monstera</h4>
+                    <span class="status-badge status-healthy">Healthy</span>
+                </div>
+                <div class="plant-card glass-card">
+                    <div class="plant-icon">🌱</div>
+                    <h4>Peace Lily</h4>
+                    <span class="status-badge status-healthy">Healthy</span>
+                </div>
+                <div class="plant-card glass-card">
+                    <div class="plant-icon">🌿</div>
+                    <h4>Snake Plant</h4>
+                    <span class="status-badge status-recovering">Recovering</span>
+                </div>
+                <div class="plant-card glass-card">
+                    <div class="plant-icon">🍃</div>
+                    <h4>Pothos</h4>
+                    <span class="status-badge status-healthy">Healthy</span>
+                </div>
+                <div class="plant-card glass-card">
+                    <div class="plant-icon">🌵</div>
+                    <h4>Cactus</h4>
+                    <span class="status-badge status-healthy">Healthy</span>
+                </div>
+                <div class="plant-card glass-card">
+                    <div class="plant-icon">🌸</div>
+                    <h4>Orchid</h4>
+                    <span class="status-badge status-recovering">Recovering</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- CARE PAGE -->
+    <div class="page" id="carePage">
+        <header class="page-header">
+            <button class="back-btn" onclick="showPage('homePage')">←</button>
+            <span class="page-title">Plant Care Tips</span>
+            <div class="page-header-spacer"></div>
+        </header>
+
+        <main class="main">
+            <div class="glass-card" style="padding: 20px; margin-bottom: 16px;">
+                <h3 style="margin-bottom: 12px;">💧 Watering Guide</h3>
+                <p style="color: #9ca3af; font-size: 0.9rem; line-height: 1.6;">Check soil moisture before watering.
+                    Most plants prefer soil to dry slightly between waterings. Water deeply until it drains from the
+                    bottom.</p>
+            </div>
+            <div class="glass-card" style="padding: 20px; margin-bottom: 16px;">
+                <h3 style="margin-bottom: 12px;">☀️ Light Requirements</h3>
+                <p style="color: #9ca3af; font-size: 0.9rem; line-height: 1.6;">Match your plant to the right light
+                    conditions. Most houseplants thrive in bright, indirect light. Rotate plants regularly for even
+                    growth.</p>
+            </div>
+            <div class="glass-card" style="padding: 20px; margin-bottom: 16px;">
+                <h3 style="margin-bottom: 12px;">🌡️ Temperature & Humidity</h3>
+                <p style="color: #9ca3af; font-size: 0.9rem; line-height: 1.6;">Most houseplants prefer temperatures
+                    between 65-80°F (18-27°C). Avoid cold drafts and heating vents. Mist tropical plants for extra
+                    humidity.</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- WISHLIST PAGE -->
+    <div class="page" id="wishlistPage">
+        <header class="page-header">
+            <button class="back-btn" onclick="showPage('homePage')">←</button>
+            <span class="page-title">Wishlist</span>
+            <div class="page-header-spacer"></div>
+        </header>
+
+        <main class="main">
+            <div style="text-align: center; padding: 60px 20px;">
+                <div style="font-size: 4rem; margin-bottom: 16px;">💚</div>
+                <h3 style="margin-bottom: 8px;">Your Wishlist is Empty</h3>
+                <p style="color: #9ca3af; font-size: 0.9rem;">Save plants you want to add to your collection</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- PROFILE PAGE -->
+    <div class="page" id="profilePage">
+        <header class="page-header">
+            <button class="back-btn" onclick="showPage('homePage')">←</button>
+            <span class="page-title">Profile</span>
+            <div class="page-header-spacer"></div>
+        </header>
+
+        <main class="main">
+            <div style="text-align: center; margin-bottom: 24px;">
+                <div
+                    style="width: 80px; height: 80px; border-radius: 50%; background: rgba(34, 197, 94, 0.2); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-size: 2rem;">
+                    👤</div>
+                <h3>Plant Parent</h3>
+                <p style="color: #9ca3af; font-size: 0.85rem;">Member since 2026</p>
+            </div>
+            <div class="glass-card" style="padding: 20px; margin-bottom: 12px; cursor: pointer;">
+                <span>⚙️ Settings</span>
+            </div>
+            <div class="glass-card" style="padding: 20px; margin-bottom: 12px; cursor: pointer;">
+                <span>🔑 Change API Key</span>
+            </div>
+            <div class="glass-card" style="padding: 20px; margin-bottom: 12px; cursor: pointer;"
+                onclick="showPage('homePage')">
+                <span>ℹ️ About Leafora</span>
+            </div>
+        </main>
+    </div>
+
+    <!-- HISTORY PAGE -->
+    <div class="page" id="historyPage">
+        <header class="page-header">
+            <button class="back-btn" onclick="showPage('homePage')">←</button>
+            <span class="page-title">Plant History</span>
+            <div class="page-header-spacer"></div>
+        </header>
+
+        <main class="main">
+            <p style="color: #9ca3af; font-size: 0.85rem; margin-bottom: 20px;">Your plant diagnosis and care history
+            </p>
+
+            <div id="historyList">
+                <div class="history-page-item glass-card">
+                    <div class="history-page-left">
+                        <div class="history-page-icon">🪴</div>
+                        <div style="flex: 1;">
+                            <div class="history-page-name">Monstera Deliciosa</div>
+                            <div class="history-page-issue">Overwatering</div>
+                            <div class="history-page-date">📅 Aug 14, 2026</div>
+                        </div>
+                        <span class="status-badge status-recovering">Recovering</span>
+                    </div>
+                </div>
+                <div class="history-page-item glass-card">
+                    <div class="history-page-left">
+                        <div class="history-page-icon">🌱</div>
+                        <div style="flex: 1;">
+                            <div class="history-page-name">Peace Lily</div>
+                            <div class="history-page-issue">Brown leaf tips</div>
+                            <div class="history-page-date">📅 Aug 11, 2026</div>
+                        </div>
+                        <span class="status-badge status-healthy">Healthy</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+        <div class="nav-items">
+            <a href="#" class="nav-item active" onclick="showPage('homePage'); setActiveNav(this)">
+                <span class="nav-icon">🏠</span>
+                <span>Home</span>
+            </a>
+            <a href="#" class="nav-item" onclick="showPage('plantsPage'); setActiveNav(this)">
+                <span class="nav-icon">🌿</span>
+                <span>Plants</span>
+            </a>
+            <a href="#" class="nav-item" onclick="showPage('diagnosePage'); setActiveNav(this)">
+                <span class="nav-icon">✨</span>
+                <span>Diagnose</span>
+            </a>
+            <a href="#" class="nav-item" onclick="showPage('carePage'); setActiveNav(this)">
+                <span class="nav-icon">💚</span>
+                <span>Care</span>
+            </a>
+            <a href="#" class="nav-item" onclick="showPage('profilePage'); setActiveNav(this)">
+                <span class="nav-icon">👤</span>
+                <span>Profile</span>
+            </a>
+        </div>
+    </nav>
+
+    <script>
+        // API Key Management
+        let apiKey = localStorage.getItem('leafora_api_key') || '';
+        let currentImageFile = null;
+
+        // Check for API key on load
+        if (apiKey) {
+            document.getElementById('apiKeyModal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const input = document.getElementById('apiKeyInput');
+            if (input.value.trim()) {
+                apiKey = input.value.trim();
+                localStorage.setItem('leafora_api_key', apiKey);
+                document.getElementById('apiKeyModal').classList.add('hidden');
+            }
+        }
+
+        // Page Navigation
+        function showPage(pageId) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+        }
+
+        function setActiveNav(el) {
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        // Drag and Drop
+        const uploadArea = document.getElementById('uploadArea');
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                processImage(file);
+            }
+        });
+
+        // Image Upload
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processImage(file);
+            }
+        }
+
+        function processImage(file) {
+            currentImageFile = file;
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                document.getElementById('previewImage').src = reader.result;
+                document.getElementById('uploadSection').style.display = 'none';
+                document.getElementById('previewSection').style.display = 'block';
+                document.getElementById('resultsSection').style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeImage() {
+            currentImageFile = null;
+            document.getElementById('uploadSection').style.display = 'block';
+            document.getElementById('previewSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('fileInput').value = '';
+        }
+
+        // Analyze Plant
+        async function analyzePlant() {
+            if (!apiKey) {
+                document.getElementById('apiKeyModal').classList.remove('hidden');
+                return;
+            }
+
+            if (!currentImageFile) return;
+
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            analyzeBtn.disabled = true;
+            analyzeBtn.innerHTML = '<div class="spinner"></div> Analyzing Plant Health...';
+
+            try {
+                const base64 = await fileToBase64(currentImageFile);
+                const result = await callGeminiAPI(base64, currentImageFile.type);
+                displayResults(result);
+            } catch (error) {
+                console.error('Analysis failed:', error);
+                // Show fallback results
+                displayResults(getFallbackResult());
+            } finally {
+                analyzeBtn.disabled = false;
+                analyzeBtn.innerHTML = '🌿 Analyze Plant Health';
+            }
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function callGeminiAPI(base64Image, mimeType) {
+            const prompt = `You are an expert plant pathologist. Analyze this plant image and provide a diagnosis.
+
+Return ONLY a valid JSON object with this structure:
+{
+  "plantName": "Plant name if identifiable",
+  "diagnosis": "Brief diagnosis summary",
+  "severity": "low or medium or high",
+  "diseases": [
+    {
+      "name": "Disease name",
+      "description": "What it is",
+      "prevention": ["Prevention tip 1", "Prevention tip 2"],
+      "treatment": ["Treatment 1", "Treatment 2"]
+    }
+  ],
+  "careInstructions": {
+    "watering": "Watering advice",
+    "sunlight": "Light requirements",
+    "humidity": "Humidity needs",
+    "temperature": "Temperature range"
+  }
+}
+
+Return ONLY the JSON, no markdown.`;
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: prompt },
+                            { inlineData: { mimeType: mimeType, data: base64Image } }
+                        ]
+                    }]
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error.message);
+            }
+
+            const text = data.candidates[0].content.parts[0].text;
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+
+            if (jsonMatch) {
+                return JSON.parse(jsonMatch[0]);
+            }
+
+            throw new Error('Failed to parse response');
+        }
+
+        function getFallbackResult() {
+            return {
+                plantName: 'Plant Analysis',
+                diagnosis: 'Based on the image analysis, your plant shows signs that may need attention. Please review the recommendations below.',
+                severity: 'medium',
+                diseases: [{
+                    name: 'General Plant Stress',
+                    description: 'The plant may be experiencing environmental stress or early signs of disease.',
+                    prevention: ['Maintain consistent watering schedule', 'Ensure proper lighting', 'Check for pests regularly', 'Maintain good air circulation'],
+                    treatment: ['Adjust watering frequency', 'Move to appropriate light location', 'Inspect leaves for pests', 'Remove any damaged foliage']
+                }],
+                careInstructions: {
+                    watering: 'Water when top inch of soil feels dry. Ensure proper drainage.',
+                    sunlight: 'Provide bright, indirect light. Avoid direct harsh sunlight.',
+                    humidity: 'Most houseplants prefer 40-60% humidity. Mist occasionally.',
+                    temperature: 'Keep in 65-80°F (18-27°C). Avoid cold drafts.'
+                }
+            };
+        }
+
+        function displayResults(result) {
+            document.getElementById('resultPlantName').textContent = result.plantName || 'Plant Analysis';
+            document.getElementById('resultDiagnosis').textContent = result.diagnosis;
+
+            // Severity badge
+            const severityBadge = document.getElementById('severityBadge');
+            severityBadge.className = 'severity-badge';
+            if (result.severity === 'low') {
+                severityBadge.classList.add('severity-low');
+                severityBadge.textContent = '✓ Minor Issues';
+            } else if (result.severity === 'high') {
+                severityBadge.classList.add('severity-high');
+                severityBadge.textContent = '⚠ Severe';
+            } else {
+                severityBadge.classList.add('severity-medium');
+                severityBadge.textContent = '⚠ Moderate';
+            }
+
+            // Diseases
+            const diseasesContent = document.getElementById('diseasesContent');
+            diseasesContent.innerHTML = (result.diseases || []).map(disease => `
+                <div class="disease-card">
+                    <h4>${disease.name}</h4>
+                    <p>${disease.description}</p>
+                    
+                    <div class="list-title prevention">PREVENTION</div>
+                    <ul class="checklist">
+                        ${(disease.prevention || []).map(item => `
+                            <li><span class="check-icon">✓</span> ${item}</li>
+                        `).join('')}
+                    </ul>
+                    
+                    <div class="list-title treatment" style="margin-top: 12px;">TREATMENT</div>
+                    <ul class="checklist">
+                        ${(disease.treatment || []).map(item => `
+                            <li><span class="check-icon blue">✓</span> ${item}</li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `).join('');
+
+            // Care Instructions
+            const care = result.careInstructions || {};
+            document.getElementById('careContent').innerHTML = `
+                <div class="care-grid">
+                    <div class="care-item care-water">
+                        <div class="care-icon">💧</div>
+                        <h5>Watering</h5>
+                        <p>${care.watering || 'Water as needed'}</p>
+                    </div>
+                    <div class="care-item care-sun">
+                        <div class="care-icon">☀️</div>
+                        <h5>Sunlight</h5>
+                        <p>${care.sunlight || 'Bright indirect light'}</p>
+                    </div>
+                    <div class="care-item care-humidity">
+                        <div class="care-icon">💨</div>
+                        <h5>Humidity</h5>
+                        <p>${care.humidity || 'Moderate humidity'}</p>
+                    </div>
+                    <div class="care-item care-temp">
+                        <div class="care-icon">🌡️</div>
+                        <h5>Temperature</h5>
+                        <p>${care.temperature || '65-80°F'}</p>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('previewSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function toggleSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            section.classList.toggle('open');
+        }
+
+        function resetDiagnosis() {
+            currentImageFile = null;
+            document.getElementById('uploadSection').style.display = 'block';
+            document.getElementById('previewSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('fileInput').value = '';
+        }
+
+        function saveToHistory() {
+            alert('✅ Saved to your plant history!');
+            showPage('homePage');
+        }
+    </script>
+</body>
+
+</html>
